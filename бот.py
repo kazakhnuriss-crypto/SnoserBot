@@ -78,6 +78,7 @@ def add_bad_session(session_file):
     with open(bad_sessions_file, 'a', encoding='utf-8') as f:
         f.write(f"{session_file}\n")
 
+# ==================== STATES ====================
 class ComplaintStates(StatesGroup):
     category = State()
     target_info = State()
@@ -121,6 +122,7 @@ class SendMessage(StatesGroup):
     media_type = State()
     media = State()
 
+# ==================== БАЗА ЖӘНЕ ФАЙЛДАР ====================
 banned_users_file = 'banned_users.txt'
 def load_banned_users():
     try:
@@ -181,6 +183,7 @@ async def is_user_in_file(user_id):
                 return True
     return False
 
+# ==================== БАСТЫ МӘЗІР ====================
 @dp.message_handler(commands=['start'], state='*')
 async def send_welcome(message: types.Message, state: FSMContext):
     await state.finish()
@@ -210,6 +213,7 @@ async def send_menu(message: types.Message, welcome_message: str):
     else:
         await message.answer(welcome_message, reply_markup=markup)
 
+# ==================== КАТЕГОРИЯ ТАҢДАУ ====================
 def get_category_keyboard(target):
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -318,6 +322,7 @@ async def process_target_info(message: types.Message, state: FSMContext):
             await message.answer(f'Сгенерированный текст:\n\n{text}\n\nКоличество отправок (до 50):')
             await ComplaintStates.count_for_site.set()
 
+# ==================== НЕГІЗГІ CALLBACK ХЭНДЛЕР ====================
 @dp.callback_query_handler(lambda call: not (call.data.startswith('code_') or call.data.startswith('reason_') or call.data.startswith('cat_')))
 async def callback_query(call: types.CallbackQuery):
     if call.from_user.id in banned_users:
@@ -344,6 +349,7 @@ async def callback_query(call: types.CallbackQuery):
         await call.message.answer('Введите номер телефона для восстановления акк:')
         await RestoreAccountStates.phone.set()
 
+# ==================== EMAIL СНОС ====================
 @dp.message_handler(state=ComplaintStates.subject)
 async def process_subject_step(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -357,7 +363,8 @@ async def process_body_step(message: types.Message, state: FSMContext):
         data['body'] = message.text
     await message.answer('Добавить фото? (Да/Нет):')
     await ComplaintStates.next()
-    @dp.message_handler(state=ComplaintStates.photos)
+
+@dp.message_handler(state=ComplaintStates.photos)
 async def process_photo_step(message: types.Message, state: FSMContext):
     add_photo = message.text.lower()
     if add_photo == 'да':
@@ -444,7 +451,7 @@ def _send_email_sync(receiver, sender_email, sender_password, subject, body, pho
         return True, 'Отправлено'
     except Exception as e:
         return False, f'Ошибка: {e}'
-
+        # ==================== WEB СНОС ====================
 @dp.message_handler(state=ComplaintStates.text_for_site)
 async def process_text_for_site_step(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -509,6 +516,7 @@ async def send_to_site(text, email, phone, proxy):
         logging.error(f"Site error: {e}")
         return False
 
+# ==================== БОТНЕТ СНОС ====================
 @dp.message_handler(state=ReportStates.message_link)
 async def process_message_link_step(message: types.Message, state: FSMContext):
     if message.from_user.id in banned_users: return
@@ -725,6 +733,7 @@ async def send_reports(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
+# ==================== СПАМ-СНОС ЖӘНЕ БАСҚАЛАР ====================
 @dp.message_handler(lambda message: message.text and ' ' in message.text, state=SpamCodeStates.phone_and_count)
 async def process_spam_code_input(message: types.Message, state: FSMContext):
     try:
@@ -828,6 +837,7 @@ async def process_password_step(message: types.Message, state: FSMContext):
     finally:
         await state.finish(); await client.disconnect()
 
+# ==================== АДМИН ПАНЕЛЬ ====================
 @dp.callback_query_handler(lambda c: c.data == 'admin_panel', state='*')
 async def admin_panel_callback(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.answer()
@@ -852,5 +862,6 @@ async def ban_user_input(message: types.Message, state: FSMContext):
         await message.answer(f'Пользователь {uid} забанен.')
     await state.finish()
 
+# ==================== ІСКЕ ҚОСУ ====================
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
