@@ -7,6 +7,7 @@ import random
 import smtplib
 import functools
 import sqlite3
+import zipfile
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -30,23 +31,15 @@ from telethon.tl.types import (
 import re
 
 # ==================== RAILWAY АЙНЫМАЛЫЛАРЫ ====================
-# Бұл деректер Railway-дің Variables бөлімінен алынады
 api_id = int(os.getenv("API_ID", 21826549))
 api_hash = os.getenv("API_HASH", "c1a19f792cfd9e397200d16c7e448160")
 bot_token = os.getenv("BOT_TOKEN", "9051064757:AAE--olRS1MR26WNDEzYov-TIlLJxV-k2k0")
 admin_chat_id = os.getenv("ADMIN_CHAT_ID", "649017709")
 
-# ==================== CONFIG-ТЕН ТІЗІМДЕРДІ АЛУ ====================
-# Бұл файлдар GitHub-та бар, сондықтан оларды импорттаймыз
-try:
-    from config import clients, senders, receivers, smtp_servers
-    from proxies import proxies
-    from user_agents import user_agents
-    from emails import mail, phone_numbers
-except ImportError as e:
-    logging.error(f"Config файлдарын оқу қатесі: {e}")
-    # Егер файлдар болмаса, бот іске қосылмайды
-    exit(1)
+from config import clients, senders, receivers, smtp_servers
+from proxies import proxies
+from user_agents import user_agents
+from emails import mail, phone_numbers
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -57,6 +50,18 @@ dp.middleware.setup(LoggingMiddleware())
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 session_dir = os.path.join(script_dir, 'Session')
+
+# ✅ ZIP-ті автоматты түрде ашу
+zip_path = os.path.join(script_dir, 'Session.zip')
+if os.path.exists(zip_path):
+    logging.info("Session.zip табылды. Автоматты түрде ашылуда...")
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(session_dir)
+        logging.info("Сессиялар сәтті шығарылды!")
+    except Exception as e:
+        logging.error(f"ZIP-ті ашу қатесі: {e}")
+
 if not os.path.exists(session_dir):
     os.makedirs(session_dir)
 
@@ -73,7 +78,6 @@ def add_bad_session(session_file):
     with open(bad_sessions_file, 'a', encoding='utf-8') as f:
         f.write(f"{session_file}\n")
 
-# ==================== STATES (КҮЙЛЕР) ====================
 class ComplaintStates(StatesGroup):
     category = State()
     target_info = State()
@@ -117,7 +121,6 @@ class SendMessage(StatesGroup):
     media_type = State()
     media = State()
 
-# ==================== БАЗА ЖӘНЕ ФАЙЛДАР ====================
 banned_users_file = 'banned_users.txt'
 def load_banned_users():
     try:
@@ -178,7 +181,6 @@ async def is_user_in_file(user_id):
                 return True
     return False
 
-# ==================== БАСТЫ МӘЗІР ====================
 @dp.message_handler(commands=['start'], state='*')
 async def send_welcome(message: types.Message, state: FSMContext):
     await state.finish()
@@ -208,7 +210,6 @@ async def send_menu(message: types.Message, welcome_message: str):
     else:
         await message.answer(welcome_message, reply_markup=markup)
 
-# ==================== КАТЕГОРИЯ ТАҢДАУ ====================
 def get_category_keyboard(target):
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -317,7 +318,6 @@ async def process_target_info(message: types.Message, state: FSMContext):
             await message.answer(f'Сгенерированный текст:\n\n{text}\n\nКоличество отправок (до 50):')
             await ComplaintStates.count_for_site.set()
 
-# ==================== НЕГІЗГІ CALLBACK ХЭНДЛЕР ====================
 @dp.callback_query_handler(lambda call: not (call.data.startswith('code_') or call.data.startswith('reason_') or call.data.startswith('cat_')))
 async def callback_query(call: types.CallbackQuery):
     if call.from_user.id in banned_users:
@@ -357,7 +357,7 @@ async def process_body_step(message: types.Message, state: FSMContext):
         data['body'] = message.text
     await message.answer('Добавить фото? (Да/Нет):')
     await ComplaintStates.next()
-@dp.message_handler(state=ComplaintStates.photos)
+    @dp.message_handler(state=ComplaintStates.photos)
 async def process_photo_step(message: types.Message, state: FSMContext):
     add_photo = message.text.lower()
     if add_photo == 'да':
