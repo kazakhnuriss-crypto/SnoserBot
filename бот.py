@@ -13,7 +13,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 api_id = int(os.getenv("API_ID", 21826549))
 api_hash = os.getenv("API_HASH", "c1a19f792cfd9e397200d16c7e448160")
-bot_token = os.getenv("BOT_TOKEN", "9051064757:AAE--olRS1MR26WNDEzYov-TIlLJxV-k2k0")
+bot_token = os.getenv("BOT_TOKEN", "9161244568:AAEPBESq5UfNoyYeA5m8bBHavRiWiiVRNNQ")
 admin_chat_id = os.getenv("ADMIN_CHAT_ID", "649017709")
 
 from config import senders, receivers, smtp_servers
